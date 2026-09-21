@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import './index.css';
 import { AppShell } from '@/layouts/AppShell';
 import { Copilot } from '@/pages/Copilot';
@@ -9,6 +9,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { DataExplorer, Forecasts, GisMaps } from '@/pages/Data';
 import { Drought } from '@/pages/Drought';
 import { FloodForecasting, FloodRisk } from '@/pages/Flood';
+import { LandingPage } from '@/pages/LandingPage';
 import { Login } from '@/pages/Login';
 import { WatershedModeling } from '@/pages/Modeling';
 import { Streamflow } from '@/pages/Streamflow';
@@ -51,7 +52,15 @@ function Root() {
     );
   }
 
-  if (!user) return <Login />;
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>
