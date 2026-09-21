@@ -11,8 +11,8 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@hydro/shared-types": "*",
-    "@hydro/units": "*",
+    "@hydro/shared-types": "file:../../packages/shared-types",
+    "@hydro/units": "file:../../packages/units",
     "@tanstack/react-query": "^5.62.7",
     "maplibre-gl": "^4.7.1",
     "react": "^18.3.1",

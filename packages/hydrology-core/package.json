@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@hydro/shared-types": "*",
-    "@hydro/units": "*"
+    "@hydro/shared-types": "file:../shared-types",
+    "@hydro/units": "file:../units"
   },
   "devDependencies": {
     "vitest": "^2.1.8"
