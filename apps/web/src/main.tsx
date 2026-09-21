@@ -52,17 +52,6 @@ function Root() {
     );
   }
 
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/landing" element={<LandingPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    );
-  }
-
   return (
     <Routes>
       <Route element={<AppShell />}>
@@ -83,6 +72,8 @@ function Root() {
         <Route path="reports" element={<Reports />} />
         <Route path="projects" element={<Projects />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route
           path="*"
           element={

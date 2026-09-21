@@ -8,6 +8,15 @@ export interface DateRange {
   label: string;
 }
 
+export const PUBLIC_USER: User = {
+  id: 'public',
+  email: 'guest@hydrologycopilot.org',
+  fullName: 'Guest Analyst',
+  organization: 'Hydrology Copilot',
+  role: 'viewer',
+  createdAt: new Date().toISOString(),
+};
+
 export const DATE_PRESETS: DateRange[] = [
   { start: null, end: null, label: 'Full record' },
   { start: isoDaysAgo(365), end: null, label: 'Last 1 year' },
@@ -60,15 +69,14 @@ export const useApp = create<AppState>((set, get) => ({
   toasts: [],
 
   async bootstrap() {
-    // Skip the round trip (and the 401 it would log) when no token is held.
     if (!getAccessToken()) {
-      set({ authChecked: true, user: null });
+      set({ authChecked: true, user: PUBLIC_USER, projects: [], projectId: null, watersheds: [], watershedId: null });
       return;
     }
     try {
       const user = await api.me();
       if (!user) {
-        set({ authChecked: true, user: null });
+        set({ authChecked: true, user: PUBLIC_USER, projects: [], projectId: null, watersheds: [], watershedId: null });
         return;
       }
       const projects = await api.projects();
@@ -84,7 +92,7 @@ export const useApp = create<AppState>((set, get) => ({
         authChecked: true,
       });
     } catch {
-      set({ authChecked: true, user: null });
+      set({ authChecked: true, user: PUBLIC_USER, projects: [], projectId: null, watersheds: [], watershedId: null });
     }
   },
 
@@ -98,7 +106,7 @@ export const useApp = create<AppState>((set, get) => ({
   logout() {
     setTokens(null);
     localStorage.removeItem('hydro.projectId');
-    set({ user: null, projects: [], projectId: null, watersheds: [], watershedId: null });
+    set({ user: PUBLIC_USER, projects: [], projectId: null, watersheds: [], watershedId: null });
   },
 
   async setProject(id) {
