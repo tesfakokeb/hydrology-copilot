@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --surface: 255 255 255;
+    --surface-sunken: 246 248 250;
+    --border: 216 222 230;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-900 antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'tnum';
+  }
+
+  /* Numbers in tables and metrics line up. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-300;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-hydro-500 ring-offset-1 ring-offset-white;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-ink-200 bg-white shadow-card;
+  }
+
+  .card-header {
+    @apply flex items-start justify-between gap-3 border-b border-ink-200 px-4 py-3;
+  }
+
+  .card-title {
+    @apply text-sm font-semibold text-ink-900;
+  }
+
+  .card-subtitle {
+    @apply mt-0.5 text-xs text-ink-500;
+  }
+
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply border-hydro-600 bg-hydro-600 text-white hover:bg-hydro-700;
+  }
+
+  .btn-secondary {
+    @apply border-ink-200 bg-white text-ink-700 hover:bg-ink-50;
+  }
+
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-ink-600 hover:bg-ink-100;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-900 placeholder:text-ink-400 focus:border-hydro-500;
+  }
+
+  .label {
+    @apply mb-1 block text-2xs font-semibold uppercase tracking-wide text-ink-500;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium;
+  }
+
+  .table-scientific {
+    @apply w-full border-collapse text-xs;
+  }
+  .table-scientific th {
+    @apply border-b border-ink-200 bg-ink-50 px-2.5 py-1.5 text-left font-semibold text-ink-600;
+  }
+  .table-scientific td {
+    @apply border-b border-ink-100 px-2.5 py-1.5 text-ink-800;
+  }
+  .table-scientific td.num,
+  .table-scientific th.num {
+    @apply text-right tabular;
+  }
+
+  .skeleton {
+    @apply rounded bg-gradient-to-r from-ink-100 via-ink-200 to-ink-100 bg-[length:800px_100%] animate-shimmer;
+  }
+}
+
+/* MapLibre overrides so the map matches the application chrome. */
+.maplibregl-ctrl-attrib {
+  @apply !text-2xs;
+}
+.maplibregl-popup-content {
+  @apply !rounded-md !border !border-ink-200 !p-3 !text-xs !shadow-panel;
+}

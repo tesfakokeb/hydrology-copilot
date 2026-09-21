@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typescript:
+    name: TypeScript — typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck every workspace
+        run: npm run typecheck
+
+      - name: Scientific and integration tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload the frontend bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          retention-days: 7
+
+  python:
+    name: Python scientific service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/science
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/science/requirements.txt
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          pip install pytest httpx
+
+      - name: Tests
+        run: pytest -q
+
+      - name: Service starts and reports its capabilities honestly
+        run: |
+          uvicorn hydro_science.app:app --port 8000 &
+          for i in $(seq 1 30); do
+            curl -fs localhost:8000/health && break
+            sleep 1
+          done
+          curl -fs localhost:8000/health | python -c "import json,sys; d=json.load(sys.stdin); assert d['status']=='ok'; print('models:', d['models'])"
+          # A model that is not installed must be reported as unavailable, not offered.
+          curl -fs localhost:8000/capabilities | python -c "import json,sys; d=json.load(sys.stdin); assert d['tft']['implemented'] is False, 'TFT must never report itself as implemented'"
+
+  database:
+    name: Migrations and seed against PostGIS
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: hydro
+          POSTGRES_PASSWORD: hydro
+          POSTGRES_DB: hydro
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U hydro"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://hydro:hydro@localhost:5432/hydro
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Migrations are idempotent
+        run: npm run db:migrate
+
+      - name: Seed the demonstration watershed
+        run: npm run db:seed
+
+      - name: Seed is idempotent
+        run: npm run db:seed
+
+      - name: Every seeded row is flagged synthetic
+        run: |
+          psql "$DATABASE_URL" -c "SET search_path TO hydro; SELECT count(*) FROM stations WHERE NOT is_synthetic;" -t | grep -qx ' *0 *'
+          psql "$DATABASE_URL" -c "SET search_path TO hydro; SELECT count(*) FROM streamflow;" -t
+
+      - name: The API serves from PostgreSQL, not the fallback store
+        run: |
+          JWT_SECRET=ci-secret node --import ./node_modules/tsx/dist/loader.mjs apps/api/src/server.ts &
+          for i in $(seq 1 40); do curl -fs localhost:4000/api/health && break; sleep 1; done
+          curl -fs localhost:4000/api/status | python3 -c "import json,sys; d=json.load(sys.stdin)['data']; assert d['database']=='online', d; print('database:', d['database'])"
+
+  docker:
+    name: Container images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/api.Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/web.Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Science image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/science
+          file: infrastructure/docker/science.Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

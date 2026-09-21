@@ -1,0 +1,19 @@
+{
+  "name": "@hydro/hydrology-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hydro/shared-types": "*",
+    "@hydro/units": "*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,3 @@
+# Deep-learning forecasting (LSTM, GRU, and the Temporal Fusion Transformer
+# scaffolding). Large download; install only when those models are needed.
+torch>=2.2

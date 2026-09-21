@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+.storage/
+*.log
+.env
+.env.local
+.api.pid
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.DS_Store

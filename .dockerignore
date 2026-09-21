@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+**/dist
+**/.vite
+.git
+.storage
+*.log
+.env
+/tmp
+services/science/.venv
+services/science/**/__pycache__
+services/science/.pytest_cache

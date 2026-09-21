@@ -1,0 +1,193 @@
+name: hydrology-copilot
+
+# Hydrology Copilot — full local stack.
+#
+#   docker compose up
+#
+# Brings up PostgreSQL/PostGIS + TimescaleDB, Redis, MinIO, the Python
+# scientific service, the Node API, the background worker, the React frontend
+# and an nginx front door. The database is migrated and seeded automatically by
+# the `migrate` service before the API starts.
+#
+# The platform also runs with none of this: `npm install && npm run dev` gives
+# a fully functional application on the in-memory synthetic store.
+
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    container_name: hydro-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hydro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hydro}
+      POSTGRES_DB: ${POSTGRES_DB:-hydro}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-hydro} -d ${POSTGRES_DB:-hydro}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: hydro-redis
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: hydro-minio
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-hydrominio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-hydrominio}
+    ports:
+      - '${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+      target: builder
+    container_name: hydro-migrate
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-hydro}:${POSTGRES_PASSWORD:-hydro}@postgres:5432/${POSTGRES_DB:-hydro}
+    command: ['sh', '-c', 'npm run db:migrate && npm run db:seed']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  ai-service:
+    build:
+      context: ./services/science
+      dockerfile: ../../infrastructure/docker/science.Dockerfile
+    container_name: hydro-science
+    environment:
+      PYTHONUNBUFFERED: '1'
+    ports:
+      - '${SCIENCE_PORT:-8000}:8000'
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    container_name: hydro-api
+    environment:
+      NODE_ENV: production
+      PORT: '4000'
+      DATABASE_URL: postgres://${POSTGRES_USER:-hydro}:${POSTGRES_PASSWORD:-hydro}@postgres:5432/${POSTGRES_DB:-hydro}
+      REDIS_URL: redis://redis:6379
+      SCIENCE_SERVICE_URL: http://ai-service:8000
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set — copy .env.example to .env and set a strong value}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:5173}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-hydrology-copilot}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-hydrominio}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-hydrominio}
+      ALLOW_DEMO_LOGIN: ${ALLOW_DEMO_LOGIN:-true}
+      HEC_HMS_PATH: ${HEC_HMS_PATH:-}
+      HEC_RAS_PATH: ${HEC_RAS_PATH:-}
+      SWAT_PATH: ${SWAT_PATH:-}
+      SWATPLUS_PATH: ${SWATPLUS_PATH:-}
+      MODFLOW_PATH: ${MODFLOW_PATH:-}
+    ports:
+      - '${API_PORT:-4000}:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    container_name: hydro-worker
+    command: ['node', 'dist/server.cjs']
+    environment:
+      NODE_ENV: production
+      # The worker runs the same image on a private port with no published
+      # ingress. Jobs currently execute in the process that enqueued them, so
+      # this replica is a warm standby rather than a second consumer; it becomes
+      # a true worker once the BullMQ integration point in
+      # apps/api/src/jobs/queue.ts is wired to Redis.
+      PORT: '4100'
+      ROLE: worker
+      DATABASE_URL: postgres://${POSTGRES_USER:-hydro}:${POSTGRES_PASSWORD:-hydro}@postgres:5432/${POSTGRES_DB:-hydro}
+      REDIS_URL: redis://redis:6379
+      SCIENCE_SERVICE_URL: http://ai-service:8000
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+      args:
+        VITE_API_BASE: ''
+    container_name: hydro-web
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: hydro-nginx
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    volumes:
+      - ./infrastructure/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

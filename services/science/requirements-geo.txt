@@ -1,0 +1,7 @@
+# Geospatial and multidimensional scientific formats.
+geopandas>=1.0
+rasterio>=1.3
+xarray>=2024.3
+netCDF4>=1.6
+shapely>=2.0
+pyproj>=3.6

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node", "vitest/globals"],
+    "baseUrl": "../..",
+    "paths": {
+      "@hydro/shared-types": ["packages/shared-types/src/index.ts"],
+      "@hydro/units": ["packages/units/src/index.ts"],
+      "@hydro/hydrology-core": ["packages/hydrology-core/src/index.ts"],
+      "@hydro/config": ["packages/config/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

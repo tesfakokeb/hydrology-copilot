@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@hydro/shared-types": ["packages/shared-types/src/index.ts"],
+      "@hydro/units": ["packages/units/src/index.ts"],
+      "@hydro/hydrology-core": ["packages/hydrology-core/src/index.ts"],
+      "@hydro/config": ["packages/config/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build"]
+}

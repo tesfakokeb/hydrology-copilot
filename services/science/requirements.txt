@@ -1,0 +1,22 @@
+# Core service — always required.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+scikit-learn>=1.4
+
+# Gradient boosting. Comment out on platforms without a wheel; the service
+# degrades to scikit-learn's HistGradientBoosting and says so.
+xgboost>=2.0
+lightgbm>=4.3
+
+# Dataset profiling for binary scientific formats.
+pyarrow>=16.0
+openpyxl>=3.1
+
+# Deep learning and geospatial stacks are heavy. Install them explicitly when
+# LSTM/GRU/TFT forecasting or raster/vector analysis is needed:
+#   pip install -r requirements-deep.txt
+#   pip install -r requirements-geo.txt
